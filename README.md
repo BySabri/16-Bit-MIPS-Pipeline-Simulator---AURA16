@@ -394,7 +394,7 @@ vvp mips_sim
 
 ---
 
-## 👨‍💻 Contributors
+### 👨‍💻 Contributors
 
 | Name | Role |
 |------|------|
