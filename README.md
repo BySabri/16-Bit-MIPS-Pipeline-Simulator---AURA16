@@ -82,8 +82,8 @@
 
 ```
 R-Type: | OpCode(4) | Rs(3) | Rt(3) | Rd(3) | Funct(3) |
-I-Type: | OpCode(4) | Rs(3) | Rt(3) |    Immediate(6)   |
-J-Type: | OpCode(4) |          Address(12)               |
+I-Type: | OpCode(4) | Rs(3) | Rt(3) |    Immediate(6)  |
+J-Type: | OpCode(4) |          Address(12)             |
 ```
 
 ### R-Type Instructions (OpCode: 0000)
