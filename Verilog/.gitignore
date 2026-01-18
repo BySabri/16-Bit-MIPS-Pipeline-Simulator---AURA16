@@ -1,0 +1,40 @@
+# Simulation files
+*.vcd
+*.vpd
+*.fsdb
+*.wlf
+
+# Synthesis files
+*.log
+*.rpt
+*.syr
+*.ngc
+*.ngr
+*.bit
+*.mcs
+
+# Xilinx/Vivado
+*.jou
+*.xpr
+*.runs/
+*.cache/
+*.hw/
+*.ip_user_files/
+
+# ModelSim/Questa
+work/
+transcript
+*.wlf
+
+# Icarus Verilog
+*.out
+*.vvp
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

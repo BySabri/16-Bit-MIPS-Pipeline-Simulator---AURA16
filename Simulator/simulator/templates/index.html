@@ -1,0 +1,457 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIPS-16 Pipeline Simulator</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'simulator/css/styles.css' %}">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <span class="logo-text">MIPS-16 Pipeline Simulator</span>
+        </div>
+        <div class="header-stats">
+            <div class="stat-item">
+                <span class="stat-label">Cycle</span>
+                <span class="stat-value" id="cycleCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">PC</span>
+                <span class="stat-value" id="pcValue">0</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item stat-cpi">
+                <span class="stat-label">CPI</span>
+                <span class="stat-value" id="perfCPI">-</span>
+            </div>
+            <div class="stat-item stat-stall">
+                <span class="stat-label">Stalls</span>
+                <span class="stat-value" id="perfStallRate">0%</span>
+            </div>
+            <div class="stat-item stat-fwd">
+                <span class="stat-label">Fwd</span>
+                <span class="stat-value" id="perfForwardRate">0%</span>
+            </div>
+            <div class="stat-item stat-flush">
+                <span class="stat-label">Flush</span>
+                <span class="stat-value" id="perfFlushCount">0</span>
+            </div>
+            <div class="status-badge" id="statusBadge">
+                <span class="status-dot"></span>
+                <span id="statusText">Ready</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span>Assembly Code</span>
+                <div class="sidebar-actions">
+                    <button class="btn-file-action btn-import" onclick="importCode()"
+                        title="Import Code (.asm, .txt, .s)">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        <span>Import</span>
+                    </button>
+                    <button class="btn-file-action btn-export" onclick="exportCode()" title="Export Code as .asm">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Export</span>
+                    </button>
+                    <button class="btn-help" onclick="toggleReferenceModal()" title="MIPS-16 Instruction Reference">ℹ
+                        Info</button>
+                </div>
+                <input type="file" id="fileInput" accept=".asm,.txt,.s" style="display:none"
+                    onchange="handleFileImport(event)">
+            </div>
+            <div class="code-editor-container">
+                <div class="line-numbers" id="lineNumbers"></div>
+                <textarea class="code-editor" id="codeEditor" spellcheck="false" placeholder="Assembly kodunuzu buraya yazın...
+
+Örnek Komutlar: 
+ADDI $r1, $r0, 5   # r1 = 5
+ADDI $r2, $r0, 3   # r2 = 3
+ADD $r3, $r1, $r2  # r3 = r1 + r2
+SUB $r4, $r1, $r2  # r4 = r1 - r2
+AND $r5, $r1, $r2  # r5 = r1 & r2
+OR $r6, $r1, $r2   # r6 = r1 | r2
+SLT $r7, $r1, $r2  # r7 = (r1 < r2) ? 1 : 0
+LW $r1, $r0, 0     # Load from memory
+SW $r1, $r0, 0     # Store to memory
+BEQ $r1, $r2, 2    # Branch if equal
+BNQ $r1, $r2, 2    # Branch if not equal
+JUMP 0             # Jump to address
+JAL 0              # Jump and link
+JR $r7             # Jump register"></textarea>
+            </div>
+            <div class="control-bar">
+                <button class="btn btn-primary" id="btnAssemble" onclick="assembleCode()"
+                    title="Assemble code (Ctrl+E)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Assemble
+                </button>
+                <button class="btn btn-orange" id="btnStepBack" onclick="stepBackCPU()" disabled
+                    title="Step back one cycle (Backspace)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 19l-7-7 7-7M19 19l-7-7 7-7" />
+                    </svg>
+                    Back
+                </button>
+                <button class="btn btn-success" id="btnStep" onclick="stepCPU()" disabled
+                    title="Step one cycle (Space)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                    </svg>
+                    Step
+                </button>
+                <button class="btn btn-warning" id="btnRunStop" onclick="toggleRunStop()" disabled
+                    title="Run/Stop (Ctrl+A)">
+                    <svg id="iconRun" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <svg id="iconStop" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                    </svg>
+                    <span id="btnRunStopText">Run</span>
+                </button>
+                <button class="btn btn-ghost" id="btnReset" onclick="resetCPU()" title="Reset CPU (Ctrl+R)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            </div>
+            <div class="speed-control">
+                <span class="speed-label">Speed</span>
+                <input type="range" class="speed-slider" id="speedSlider" min="1" max="2000" value="500" step="1"
+                    oninput="updateSpeedDisplay()">
+                <span class="speed-value" id="speedValue">500ms</span>
+            </div>
+            <div class="shortcuts-hint">
+                <span><kbd>Ctrl+E</kbd> Assemble</span>
+                <span><kbd>⌫</kbd> Back</span>
+                <span><kbd>Space</kbd> Step</span>
+                <span><kbd>Ctrl+A</kbd> Run</span>
+                <span><kbd>Ctrl+R</kbd> Reset</span>
+            </div>
+        </aside>
+
+        <!-- Content -->
+        <main class="content">
+            <!-- Pipeline -->
+            <section class="pipeline-section">
+                <div class="pipeline-header">
+                    <div class="section-title">Pipeline Stages</div>
+                    <div class="pipeline-indicators">
+                        <span class="stall-indicator" id="stallIndicator" style="display:none">STALL</span>
+                        <span class="forward-indicator" id="forwardIndicator" style="display:none">FWD</span>
+                    </div>
+                    <button class="btn-timeline" onclick="toggleTimelineModal()">View Timeline</button>
+                </div>
+                <div class="pipeline-row">
+                    <div class="pipeline-stage if" id="stage-if">
+                        <div class="stage-label">IF</div>
+                        <div class="stage-instr nop" id="if-instr">—</div>
+                    </div>
+                    <span class="pipeline-arrow" id="arrow-if-id">→</span>
+                    <div class="pipeline-stage id" id="stage-id">
+                        <div class="stage-label">ID</div>
+                        <div class="stage-instr nop" id="id-instr">—</div>
+                    </div>
+                    <span class="pipeline-arrow" id="arrow-id-ex">→</span>
+                    <div class="pipeline-stage ex" id="stage-ex" style="position:relative;">
+                        <div class="stage-label">EX</div>
+                        <div class="stage-instr nop" id="ex-instr">—</div>
+                    </div>
+                    <span class="pipeline-arrow" id="arrow-ex-mem">→</span>
+                    <div class="pipeline-stage mem" id="stage-mem">
+                        <div class="stage-label">MEM</div>
+                        <div class="stage-instr nop" id="mem-instr">—</div>
+                    </div>
+                    <span class="pipeline-arrow" id="arrow-mem-wb">→</span>
+                    <div class="pipeline-stage wb" id="stage-wb">
+                        <div class="stage-label">WB</div>
+                        <div class="stage-instr nop" id="wb-instr">—</div>
+                    </div>
+                </div>
+                <!-- Forwarding Indicators -->
+                <div class="forward-arrows" id="fwdArrows">
+                    <!-- Hazard Indicator -->
+                    <div class="hazard-indicator" id="hazard-indicator">
+                        Load-Use Hazard
+                    </div>
+                    <!-- Control Hazard Indicator (Branch/Jump) -->
+                    <div class="control-hazard-indicator" id="control-hazard-indicator">
+                        Control Hazard
+                    </div>
+                    <!-- EX_MEM Forwarding (MEM → EX) -->
+                    <div class="fwd-arrow-exmem" id="fwd-exmem">
+                        MEM → EX Forwarding
+                    </div>
+                    <!-- MEM_WB Forwarding (WB → EX) -->
+                    <div class="fwd-arrow-memwb" id="fwd-memwb">
+                        WB → EX Forwarding
+                    </div>
+                    <!-- Memory Warning -->
+                    <div class="memory-warning" id="memory-warning">
+                        Uninitialized Memory
+                    </div>
+                </div>
+            </section>
+            <!-- Data Panels -->
+            <section class="data-section">
+                <!-- Registers -->
+                <div class="data-panel">
+                    <div class="panel-header">Registers</div>
+                    <div class="panel-content">
+                        <div class="registers-grid" id="registersGrid"></div>
+                    </div>
+                </div>
+
+                <!-- Instruction Memory (Binary) -->
+                <div class="data-panel">
+                    <div class="panel-header panel-header-with-btn">
+                        <span>Instruction Memory</span>
+                        <button class="btn-export" onclick="toggleHexExportModal()" title="Export HEX codes">Export
+                            HEX</button>
+                    </div>
+                    <div class="panel-content">
+                        <div class="mc-list" id="instrMemList">
+                            <div class="mc-empty">Click "Assemble" to load</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Split Panel: Instruction + Data Memory -->
+                <div class="data-panel split-panel">
+                    <div class="sub-panel">
+                        <div class="panel-header">Data Memory</div>
+                        <div class="panel-content">
+                            <div class="mem-list" id="dataMemList">
+                                <div class="mem-empty">No data stored</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Timeline Modal -->
+    <div class="modal-overlay" id="timelineModal" onclick="closeTimelineModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">Pipeline Timeline (Cycle-by-Cycle)</span>
+                <button class="modal-close" onclick="toggleTimelineModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="timeline-container" id="timelineContainer">
+                    <div class="mc-empty">Assemble ve Step yaparak timeline'ı görün</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MIPS Reference Modal -->
+    <div class="modal-overlay" id="referenceModal" onclick="closeReferenceModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 800px;">
+            <div class="modal-header">
+                <span class="modal-title">MIPS-16 Instruction Reference</span>
+                <button class="modal-close" onclick="toggleReferenceModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Registers -->
+                <div class="ref-section">
+                    <div class="ref-title">Registers (8 x 16-bit)</div>
+                    <div class="ref-grid cols-4">
+                        <div class="ref-item ref-reg"><span class="name">$r0</span>
+                            <div class="info">Constant 0</div>
+                        </div>
+                        <div class="ref-item ref-reg"><span class="name">$r1</span>
+                            <div class="info">General</div>
+                        </div>
+                        <div class="ref-item ref-reg"><span class="name">$r2</span>
+                            <div class="info">General</div>
+                        </div>
+                        <div class="ref-item ref-reg"><span class="name">$r3</span>
+                            <div class="info">General</div>
+                        </div>
+                        <div class="ref-item ref-reg"><span class="name">$r4</span>
+                            <div class="info">General</div>
+                        </div>
+                        <div class="ref-item ref-reg"><span class="name">$r5</span>
+                            <div class="info">General</div>
+                        </div>
+                        <div class="ref-item ref-reg"><span class="name">$r6</span>
+                            <div class="info">General</div>
+                        </div>
+                        <div class="ref-item ref-reg"><span class="name">$r7</span>
+                            <div class="info">Return Address</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- R-Type Instructions -->
+                <div class="ref-section">
+                    <div class="ref-title"><span class="ref-badge r">R-Type</span> Arithmetic/Logic (opcode: 0000)</div>
+                    <div class="ref-grid cols-2">
+                        <div class="ref-item"><span class="cmd">ADD $rd, $rs, $rt</span>
+                            <div class="desc">rd = rs + rt | funct: 000</div>
+                        </div>
+                        <div class="ref-item"><span class="cmd">SUB $rd, $rs, $rt</span>
+                            <div class="desc">rd = rs - rt | funct: 001</div>
+                        </div>
+                        <div class="ref-item"><span class="cmd">AND $rd, $rs, $rt</span>
+                            <div class="desc">rd = rs & rt | funct: 010</div>
+                        </div>
+                        <div class="ref-item"><span class="cmd">OR $rd, $rs, $rt</span>
+                            <div class="desc">rd = rs | rt | funct: 011</div>
+                        </div>
+                        <div class="ref-item"><span class="cmd">SLT $rd, $rs, $rt</span>
+                            <div class="desc">rd = (rs < rt) ? 1 : 0 | funct: 100</div>
+                            </div>
+                            <div class="ref-item"><span class="cmd">JR $rs</span>
+                                <div class="desc">PC = rs (Jump Register) | funct: 101</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- I-Type Instructions -->
+                    <div class="ref-section">
+                        <div class="ref-title"><span class="ref-badge i">I-Type</span> Immediate/Memory/Branch</div>
+                        <div class="ref-grid cols-2">
+                            <div class="ref-item"><span class="cmd">LW $rt, $rs, offset</span>
+                                <div class="desc">rt = Mem[rs + offset] | opcode: 0001</div>
+                            </div>
+                            <div class="ref-item"><span class="cmd">SW $rt, $rs, offset</span>
+                                <div class="desc">Mem[rs + offset] = rt | opcode: 0010</div>
+                            </div>
+                            <div class="ref-item"><span class="cmd">ADDI $rt, $rs, imm</span>
+                                <div class="desc">rt = rs + imm | opcode: 0011</div>
+                            </div>
+                            <div class="ref-item"><span class="cmd">SUBI $rt, $rs, imm</span>
+                                <div class="desc">rt = rs - imm | opcode: 0100</div>
+                            </div>
+                            <div class="ref-item"><span class="cmd">SLTI $rt, $rs, imm</span>
+                                <div class="desc">rt = (rs < imm) ? 1 : 0 | opcode: 0101</div>
+                                </div>
+                                <div class="ref-item"><span class="cmd">BEQ $rs, $rt, offset</span>
+                                    <div class="desc">if (rs == rt) PC += offset | opcode: 0110</div>
+                                </div>
+                                <div class="ref-item"><span class="cmd">BNQ $rs, $rt, offset</span>
+                                    <div class="desc">if (rs != rt) PC += offset | opcode: 0111</div>
+                                </div>
+                                <div class="ref-item"><span class="cmd">ANDI $rt, $rs, imm</span>
+                                    <div class="desc">rt = rs & imm | opcode: 1000</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- J-Type Instructions -->
+                        <div class="ref-section">
+                            <div class="ref-title"><span class="ref-badge j">J-Type</span> Jump Instructions</div>
+                            <div class="ref-grid cols-2">
+                                <div class="ref-item"><span class="cmd">JUMP address</span>
+                                    <div class="desc">PC = address | opcode: 1001</div>
+                                </div>
+                                <div class="ref-item"><span class="cmd">JAL address</span>
+                                    <div class="desc">$r7 = PC+1, PC = address | opcode: 1010</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Instruction Format -->
+                        <div class="ref-section">
+                            <div class="ref-title">Instruction Formats (16-bit)</div>
+                            <div class="ref-grid">
+                                <div class="ref-item"><span class="cmd">R-Type:</span> <span class="syntax">opcode(4) |
+                                        rs(3) | rt(3) | rd(3) | func(3)</span></div>
+                                <div class="ref-item"><span class="cmd">I-Type:</span> <span class="syntax">opcode(4) |
+                                        rs(3) | rt(3) | immediate(6)</span></div>
+                                <div class="ref-item"><span class="cmd">J-Type:</span> <span class="syntax">opcode(4) |
+                                        address(12)</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hex Export Modal -->
+            <div class="modal-overlay" id="hexExportModal" onclick="closeHexExportModal(event)">
+                <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <span class="modal-title">Export HEX Codes</span>
+                        <button class="modal-close" onclick="toggleHexExportModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="hex-export-content">
+                            <textarea class="hex-export-textarea" id="hexExportText" readonly
+                                placeholder="Assemble code first..."></textarea>
+                            <button class="btn-copy" id="copyHexBtn" onclick="copyHexToClipboard()">
+                                Copy to Clipboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export File Modal -->
+            <div class="modal-overlay" id="exportModal" onclick="closeExportModal(event)">
+                <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 400px;">
+                    <div class="modal-header">
+                        <span class="modal-title">Export Code</span>
+                        <button class="modal-close" onclick="toggleExportModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="export-form">
+                            <label for="exportFilename">Filename</label>
+                            <div class="filename-input-group">
+                                <input type="text" id="exportFilename" class="filename-input" value="program"
+                                    placeholder="Enter filename">
+                                <span class="filename-ext">.asm</span>
+                            </div>
+                            <button class="btn-file-action btn-export" onclick="saveExportFile()">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span>Download</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast -->
+            <div class="toast" id="toast"></div>
+
+            <script src="{% static 'simulator/js/main.js' %}"></script>
+</body>
+
+</html>
